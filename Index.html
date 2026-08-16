@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <title>Aplikasi Pengeluaran</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --bg-color: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --income: #10B981;
+            --expense: #EF4444;
+            --radius: 16px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; padding: 15px; }
+        
+        .app-container {
+            width: 100%; max-width: 480px; background: var(--card-bg);
+            border-radius: var(--radius); box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 24px; min-height: 95vh;
+        }
+
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h1 { font-size: 20px; font-weight: 600; }
+        .month-filter { background: #F9FAFB; border: 1px solid #E5E7EB; padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; font-weight: 500; }
+
+        /* Kartu Saldo Utama (Akumulasi Semua Bulan) */
+        .balance-card { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; padding: 24px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); }
+        .balance-card h2 { font-size: 13px; font-weight: 400; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;}
+        .balance-card .amount { font-size: 30px; font-weight: 600; margin-top: 8px; }
+
+        .section-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text-main); }
+
+        /* Ringkasan Bulanan (Otomatis Reset per Bulan) */
+        .summary { display: flex; justify-content: space-between; margin-bottom: 24px; }
+        .summary-box { background: var(--bg-color); padding: 16px; border-radius: 12px; width: 48%; text-align: center; border: 1px solid #E5E7EB;}
+        .summary-box p { font-size: 12px; color: var(--text-muted); }
+        .summary-box h3 { font-size: 14px; margin-top: 4px; }
+        .income-text { color: var(--income); }
+        .expense-text { color: var(--expense); }
+
+        .form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        .form-row .form-group { flex: 1; }
+        
+        input, select { width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; outline: none; }
+        input:focus, select:focus { border-color: var(--primary); }
+        
+        button { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 12px; }
+        button:hover { background: #4338CA; }
+
+        .history-title { font-size: 15px; font-weight: 600; margin: 20px 0 10px; display: flex; justify-content: space-between; align-items: center;}
+        .transaction-list { list-style: none; max-height: 350px; overflow-y: auto; }
+        .transaction-item { display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #F9FAFB; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid #E5E7EB; }
+        .transaction-item.income-border { border-left-color: var(--income); }
+        .transaction-item.expense-border { border-left-color: var(--expense); }
+        .transaction-info h4 { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+        .transaction-date { font-size: 11px; color: var(--text-muted); background: #E5E7EB; padding: 2px 6px; border-radius: 4px; }
+        .transaction-amount { font-size: 13px; font-weight: 600; text-align: right; }
+        
+        .delete-btn { color: var(--expense); font-size: 12px; cursor: pointer; border: none; background: none; margin-top: 5px; font-weight: 500; padding: 0;}
+        .empty-state { text-align: center; font-size: 13px; color: var(--text-muted); padding: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header-top">
+        <h1>DompetKu</h1>
+        <!-- Pilihan Bulan yang Mengontrol Data Bawah -->
+        <input type="month" id="filter-month" class="month-filter">
+    </div>
+    
+    <!-- SALDO KESELURUHAN: Terakumulasi Sepanjang Masa, Tidak Pernah Reset -->
+    <div class="balance-card">
+        <h2>Total Saldo Saat Ini</h2>
+        <div class="amount" id="balance">Rp 0</div>
+    </div>
+
+    <div class="section-label" id="summary-label">Catatan Bulan Ini</div>
+    <!-- RINGKASAN BULANAN: Hanya menghitung di bulan yang dipilih, reset tiap ganti bulan -->
+    <div class="summary">
+        <div class="summary-box">
+            <p>Pemasukan</p>
+            <h3 class="income-text" id="total-income">Rp 0</h3>
+        </div>
+        <div class="summary-box">
+            <p>Pengeluaran</p>
+            <h3 class="expense-text" id="total-expense">Rp 0</h3>
+        </div>
+    </div>
+
+    <form id="transaction-form">
+        <div class="form-row">
+            <div class="form-group" style="flex: 1.5;">
+                <input type="text" id="desc" placeholder="Keterangan (Cth: Bensin)" required>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <input type="date" id="date" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <input type="number" id="amount" placeholder="Nominal (Cth: 50000)" required>
+            </div>
+            <div class="form-group">
+                <select id="type">
+                    <option value="expense">Pengeluaran</option>
+                    <option value="income">Pemasukan</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit">Tambah Transaksi</button>
+    </form>
+
+    <div class="history-title">Riwayat Transaksi</div>
+    <ul class="transaction-list" id="transaction-list"></ul>
+</div>
+
+<script>
+    const form = document.getElementById('transaction-form');
+    const descInput = document.getElementById('desc');
+    const amountInput = document.getElementById('amount');
+    const typeInput = document.getElementById('type');
+    const dateInput = document.getElementById('date');
+    const filterMonthInput = document.getElementById('filter-month');
+    const summaryLabel = document.getElementById('summary-label');
+    
+    const transactionList = document.getElementById('transaction-list');
+    const balanceEl = document.getElementById('balance');
+    const incomeEl = document.getElementById('total-income');
+    const expenseEl = document.getElementById('total-expense');
+
+    // Ambil data permanen dari Local Storage
+    let transactions = JSON.parse(localStorage.getItem('dataDompetKu')) || [];
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+    filterMonthInput.value = `${yyyy}-${mm}`;
+
+    function formatRupiah(angka) {
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+    }
+
+    function formatDateIndo(dateString) {
+        const options = { day: 'numeric', month: 'short', year: 'numeric' };
+        return new Date(dateString).toLocaleDateString('id-ID', options);
+    }
+
+    // Fungsi menyimpan data ke memori HP
+    function saveData() {
+        localStorage.setItem('dataDompetKu', JSON.stringify(transactions));
+    }
+
+    function deleteTransaction(id) {
+        transactions = transactions.filter(trx => trx.id !== id);
+        saveData(); 
+        updateUI(); 
+    }
+
+    function updateUI() {
+        // 1. HITUNG TOTAL SALDO KESELURUHAN (UANG NYATA)
+        let totalAllIncome = 0;
+        let totalAllExpense = 0;
+        
+        transactions.forEach(trx => {
+            if (trx.type === 'income') totalAllIncome += trx.amount;
+            else totalAllExpense += trx.amount;
+        });
+        
+        const globalBalance = totalAllIncome - totalAllExpense;
+        balanceEl.innerText = formatRupiah(globalBalance);
+
+        // 2. HITUNG DATA KHUSUS BULAN YANG DIPILIH
+        transactionList.innerHTML = '';
+        const selectedMonth = filterMonthInput.value;
+        let monthlyIncome = 0; 
+        let monthlyExpense = 0;
+
+        // Ubah Label Text Sesuai Bulan
+        const dateObj = new Date(selectedMonth + '-01');
+        const monthName = dateObj.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        summaryLabel.innerText = `Catatan Bulan: ${monthName}`;
+
+        const filteredTransactions = transactions.filter(trx => trx.date.startsWith(selectedMonth));
+        filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        if (filteredTransactions.length === 0) {
+            transactionList.innerHTML = '<p class="empty-state">Belum ada transaksi di bulan ini.<br>Akan otomatis mulai dari Rp 0.</p>';
+        }
+
+        filteredTransactions.forEach(trx => {
+            const li = document.createElement('li');
+            const isIncome = trx.type === 'income';
+            li.className = `transaction-item ${isIncome ? 'income-border' : 'expense-border'}`;
+            
+            const sign = isIncome ? '+' : '-';
+            const colorClass = isIncome ? 'income-text' : 'expense-text';
+
+            if (isIncome) monthlyIncome += trx.amount;
+            else monthlyExpense += trx.amount;
+
+            li.innerHTML = `
+                <div class="transaction-info">
+                    <h4>${trx.desc}</h4>
+                    <span class="transaction-date">${formatDateIndo(trx.date)}</span>
+                    <button class="delete-btn" onclick="deleteTransaction(${trx.id})">Hapus</button>
+                </div>
+                <div class="transaction-amount ${colorClass}">
+                    ${sign} ${formatRupiah(trx.amount)}
+                </div>
+            `;
+            transactionList.appendChild(li);
+        });
+
+        // Tampilkan hanya Pemasukan & Pengeluaran BULAN INI
+        incomeEl.innerText = formatRupiah(monthlyIncome);
+        expenseEl.innerText = formatRupiah(monthlyExpense);
+    }
+
+    // Jika filter bulan diganti, perbarui tampilan data bawah, TAPI saldo atas tetap utuh
+    filterMonthInput.addEventListener('change', updateUI);
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const transaction = {
+            id: Date.now(),
+            desc: descInput.value,
+            amount: parseFloat(amountInput.value),
+            type: typeInput.value,
+            date: dateInput.value
+        };
+
+        transactions.push(transaction);
+        saveData(); 
+        updateUI();
+
+        descInput.value = '';
+        amountInput.value = '';
+    });
+
+    updateUI();
+</script>
+
+</body>
+</html>
