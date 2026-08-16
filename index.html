@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <title>Aplikasi Pengeluaran</title>
+    <title>DompetKu Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -34,14 +34,12 @@
         h1 { font-size: 20px; font-weight: 600; }
         .month-filter { background: #F9FAFB; border: 1px solid #E5E7EB; padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; font-weight: 500; }
 
-        /* Kartu Saldo Utama (Akumulasi Semua Bulan) */
         .balance-card { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; padding: 24px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); }
         .balance-card h2 { font-size: 13px; font-weight: 400; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;}
         .balance-card .amount { font-size: 30px; font-weight: 600; margin-top: 8px; }
 
         .section-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text-main); }
 
-        /* Ringkasan Bulanan (Otomatis Reset per Bulan) */
         .summary { display: flex; justify-content: space-between; margin-bottom: 24px; }
         .summary-box { background: var(--bg-color); padding: 16px; border-radius: 12px; width: 48%; text-align: center; border: 1px solid #E5E7EB;}
         .summary-box p { font-size: 12px; color: var(--text-muted); }
@@ -55,11 +53,11 @@
         input, select { width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; outline: none; }
         input:focus, select:focus { border-color: var(--primary); }
         
-        button { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 12px; }
+        button { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 12px; transition: background 0.3s; }
         button:hover { background: #4338CA; }
 
-        .history-title { font-size: 15px; font-weight: 600; margin: 20px 0 10px; display: flex; justify-content: space-between; align-items: center;}
-        .transaction-list { list-style: none; max-height: 350px; overflow-y: auto; }
+        .history-title { font-size: 15px; font-weight: 600; margin: 20px 0 10px; }
+        .transaction-list { list-style: none; max-height: 280px; overflow-y: auto; }
         .transaction-item { display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #F9FAFB; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid #E5E7EB; }
         .transaction-item.income-border { border-left-color: var(--income); }
         .transaction-item.expense-border { border-left-color: var(--expense); }
@@ -69,6 +67,13 @@
         
         .delete-btn { color: var(--expense); font-size: 12px; cursor: pointer; border: none; background: none; margin-top: 5px; font-weight: 500; padding: 0;}
         .empty-state { text-align: center; font-size: 13px; color: var(--text-muted); padding: 20px 0; }
+
+        /* Menu Backup & Restore */
+        .backup-container { margin-top: 25px; border-top: 1px solid #E5E7EB; padding-top: 15px; display: flex; gap: 10px; }
+        .btn-backup { background: #10B981; margin-bottom: 0; font-size: 12px; padding: 10px; }
+        .btn-backup:hover { background: #059669; }
+        .btn-restore { background: #F59E0B; margin-bottom: 0; font-size: 12px; padding: 10px; color: white; }
+        .btn-restore:hover { background: #D97706; }
     </style>
 </head>
 <body>
@@ -76,18 +81,15 @@
 <div class="app-container">
     <div class="header-top">
         <h1>DompetKu</h1>
-        <!-- Pilihan Bulan yang Mengontrol Data Bawah -->
         <input type="month" id="filter-month" class="month-filter">
     </div>
     
-    <!-- SALDO KESELURUHAN: Terakumulasi Sepanjang Masa, Tidak Pernah Reset -->
     <div class="balance-card">
         <h2>Total Saldo Saat Ini</h2>
         <div class="amount" id="balance">Rp 0</div>
     </div>
 
     <div class="section-label" id="summary-label">Catatan Bulan Ini</div>
-    <!-- RINGKASAN BULANAN: Hanya menghitung di bulan yang dipilih, reset tiap ganti bulan -->
     <div class="summary">
         <div class="summary-box">
             <p>Pemasukan</p>
@@ -124,6 +126,13 @@
 
     <div class="history-title">Riwayat Transaksi</div>
     <ul class="transaction-list" id="transaction-list"></ul>
+
+    <!-- Tombol Backup & Restore di Bagian Bawah -->
+    <div class="backup-container">
+        <button class="btn-backup" onclick="downloadBackup()">Backup Data</button>
+        <input type="file" id="fileInput" style="display: none;" onchange="uploadBackup(event)">
+        <button class="btn-restore" onclick="document.getElementById('fileInput').click()">Muat Data</button>
+    </div>
 </div>
 
 <script>
@@ -140,7 +149,6 @@
     const incomeEl = document.getElementById('total-income');
     const expenseEl = document.getElementById('total-expense');
 
-    // Ambil data permanen dari Local Storage
     let transactions = JSON.parse(localStorage.getItem('dataDompetKu')) || [];
 
     const today = new Date();
@@ -160,7 +168,6 @@
         return new Date(dateString).toLocaleDateString('id-ID', options);
     }
 
-    // Fungsi menyimpan data ke memori HP
     function saveData() {
         localStorage.setItem('dataDompetKu', JSON.stringify(transactions));
     }
@@ -172,7 +179,6 @@
     }
 
     function updateUI() {
-        // 1. HITUNG TOTAL SALDO KESELURUHAN (UANG NYATA)
         let totalAllIncome = 0;
         let totalAllExpense = 0;
         
@@ -184,13 +190,11 @@
         const globalBalance = totalAllIncome - totalAllExpense;
         balanceEl.innerText = formatRupiah(globalBalance);
 
-        // 2. HITUNG DATA KHUSUS BULAN YANG DIPILIH
         transactionList.innerHTML = '';
         const selectedMonth = filterMonthInput.value;
         let monthlyIncome = 0; 
         let monthlyExpense = 0;
 
-        // Ubah Label Text Sesuai Bulan
         const dateObj = new Date(selectedMonth + '-01');
         const monthName = dateObj.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
         summaryLabel.innerText = `Catatan Bulan: ${monthName}`;
@@ -199,7 +203,7 @@
         filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         if (filteredTransactions.length === 0) {
-            transactionList.innerHTML = '<p class="empty-state">Belum ada transaksi di bulan ini.<br>Akan otomatis mulai dari Rp 0.</p>';
+            transactionList.innerHTML = '<p class="empty-state">Belum ada transaksi di bulan ini.</p>';
         }
 
         filteredTransactions.forEach(trx => {
@@ -226,12 +230,10 @@
             transactionList.appendChild(li);
         });
 
-        // Tampilkan hanya Pemasukan & Pengeluaran BULAN INI
         incomeEl.innerText = formatRupiah(monthlyIncome);
         expenseEl.innerText = formatRupiah(monthlyExpense);
     }
 
-    // Jika filter bulan diganti, perbarui tampilan data bawah, TAPI saldo atas tetap utuh
     filterMonthInput.addEventListener('change', updateUI);
 
     form.addEventListener('submit', (e) => {
@@ -252,6 +254,42 @@
         descInput.value = '';
         amountInput.value = '';
     });
+
+    // Fitur Download Backup File
+    function downloadBackup() {
+        if (transactions.length === 0) {
+            alert("Belum ada data untuk dibackup!");
+            return;
+        }
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
+        let downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `backup_dompetku_${yyyy}-${mm}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    // Fitur Upload / Muat File Backup
+    function uploadBackup(event) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = JSON.parse(e.target.result);
+                if (Array.isArray(data)) {
+                    transactions = data;
+                    saveData();
+                    updateUI();
+                    alert("Data berhasil dimuat!");
+                } else {
+                    alert("Format file tidak valid!");
+                }
+            } catch (err) {
+                alert("Gagal membaca file!");
+            }
+        };
+        reader.readAsText(event.target.files[0]);
+    }
 
     updateUI();
 </script>
